@@ -11,7 +11,7 @@ namespace SecSchoolApi.Middleware
         public async Task Invoke(HttpContext context, IAppControlService control)
         {
             var path = context.Request.Path.Value?.ToLowerInvariant() ?? string.Empty;
-            if (path.StartsWith("/swagger") || path.StartsWith("/api/system/health") || path.StartsWith("/api/auth/"))
+            if (path.StartsWith("/swagger") || path.StartsWith("/api/system/health") || path.StartsWith("/api/auth/") || path.StartsWith("/api/system/maintenance"))
             {
                 await _next(context);
                 return;

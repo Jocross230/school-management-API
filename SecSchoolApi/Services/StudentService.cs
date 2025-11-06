@@ -25,6 +25,15 @@ namespace SecSchoolApi.Services
                 .OrderBy(s => s.FullName)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
+                 .Select(s => new StudentModel
+                 {
+                     Id = s.Id,
+                     FullName = s.FullName,
+                     DateOfBirth = s.DateOfBirth,
+                     Class = s.Class,
+                     HealthIssue = s.HealthIssue ?? string.Empty,  
+                     ParentId = s.ParentId
+                 })
                 .ToListAsync(ct);
             return new PagedResult<StudentModel> { Page = page, PageSize = pageSize, TotalCount = total, Items = items };
         }
@@ -34,6 +43,12 @@ namespace SecSchoolApi.Services
 
         public async Task<StudentModel> CreateAsync(StudentModel student)
         {
+            // Validate parent exists
+            var parent = await _context.Parents.FindAsync(student.ParentId);
+            if (parent == null) throw new Exception("Parent not found");
+            student.Parent = parent;
+            // Generate Id server-side
+            student.Id = Guid.NewGuid();
             _context.Students.Add(student);
             await _context.SaveChangesAsync();
             return student;

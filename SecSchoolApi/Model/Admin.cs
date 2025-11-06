@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace SecSchoolApi.Model
@@ -19,5 +20,15 @@ namespace SecSchoolApi.Model
 
         [MaxLength(20)]
         public string? PhoneNumber { get; set; }
+
+        // Link to identity user (nullable for backward compatibility)
+        public Guid? ApplicationUserId { get; set; }
+
+        // Soft-delete flags
+        [JsonIgnore]
+        public bool IsDeleted { get; set; } = false;
+
+        [JsonIgnore]
+        public DateTime? DeletedAt { get; set; }
     }
 }

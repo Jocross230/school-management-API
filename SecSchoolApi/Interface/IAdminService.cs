@@ -1,4 +1,4 @@
-﻿using SecSchoolApi.Model;
+using SecSchoolApi.Model;
 
 namespace SecSchoolApi.Interface
 {
@@ -17,5 +17,8 @@ namespace SecSchoolApi.Interface
         Task<Admin?> GetByIdAsync(Guid id);
         Task<Admin?> UpdateAsync(Guid id, Admin updated);
         Task<bool> DeleteAsync(Guid id);
+        Task<bool> RestoreAsync(Guid id);
+        Task<bool> DeleteByUserIdAsync(Guid userId);
+        Task<bool> RestoreByUserIdAsync(Guid userId);
     }
 }

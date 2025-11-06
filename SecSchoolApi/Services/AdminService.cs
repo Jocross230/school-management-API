@@ -41,6 +41,7 @@ namespace SecSchoolApi.Services
 
         public async Task<AnnouncementModel> PublishAnnouncementAsync(AnnouncementModel announcement)
         {
+            announcement.Id = Guid.NewGuid();
             announcement.Date = DateTime.UtcNow;
             _db.Announcements.Add(announcement);
             await _db.SaveChangesAsync();
@@ -71,6 +72,27 @@ namespace SecSchoolApi.Services
         }
         public async Task<Admin> RegisterAdminAsync(Admin admin)
         {
+            // Idempotency: if an Admin already exists for this identity user or email, return/undelete it.
+            var existing = await _db.Admins.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(a => (admin.ApplicationUserId != null && a.ApplicationUserId == admin.ApplicationUserId)
+                                          || a.Email == admin.Email);
+            if (existing != null)
+            {
+                if (existing.IsDeleted)
+                {
+                    existing.IsDeleted = false;
+                    existing.DeletedAt = null;
+                    existing.FullName = admin.FullName;
+                    existing.PhoneNumber = admin.PhoneNumber;
+                    if (existing.ApplicationUserId == null && admin.ApplicationUserId != null)
+                        existing.ApplicationUserId = admin.ApplicationUserId;
+                    await _db.SaveChangesAsync();
+                }
+                return existing;
+            }
+
+            // Always generate a new Id to avoid client-sent duplicates
+            admin.Id = Guid.NewGuid();
             _db.Admins.Add(admin);
             await _db.SaveChangesAsync();
             return admin;
@@ -101,10 +123,42 @@ namespace SecSchoolApi.Services
 
         public async Task<bool> DeleteAsync(Guid id)
         {
-            var existing = await _db.Admins.FindAsync(id);
+            var existing = await _db.Admins.FirstOrDefaultAsync(a => a.Id == id);
             if (existing == null) return false;
 
-            _db.Admins.Remove(existing);
+            existing.IsDeleted = true;
+            existing.DeletedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RestoreAsync(Guid id)
+        {
+            var existing = await _db.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Id == id);
+            if (existing == null || !existing.IsDeleted) return false;
+
+            existing.IsDeleted = false;
+            existing.DeletedAt = null;
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> DeleteByUserIdAsync(Guid userId)
+        {
+            var existing = await _db.Admins.FirstOrDefaultAsync(a => a.ApplicationUserId == userId);
+            if (existing == null) return false;
+            existing.IsDeleted = true;
+            existing.DeletedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RestoreByUserIdAsync(Guid userId)
+        {
+            var existing = await _db.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.ApplicationUserId == userId);
+            if (existing == null || !existing.IsDeleted) return false;
+            existing.IsDeleted = false;
+            existing.DeletedAt = null;
             await _db.SaveChangesAsync();
             return true;
         }

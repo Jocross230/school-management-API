@@ -8,7 +8,7 @@ namespace SecSchoolApi.Swagger
         public AccommodationRequestDto GetExamples() => new AccommodationRequestDto
         {
             HostelPreference = "Hostel A",
-            Remark = "Needs lower bunk"
+            Remark = "Need a bunk"
         };
     }
 
@@ -20,7 +20,7 @@ namespace SecSchoolApi.Swagger
             StudentId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
             Status = AccommodationStatus.Pending,
             RequestedAt = DateTime.UtcNow,
-            Remark = "Needs lower bunk"
+            Remark = "Needs a bunk"
         };
     }
 

@@ -372,6 +372,7 @@ namespace SecSchoolApi.Migrations
                     FullName = table.Column<string>(type: "TEXT", nullable: false),
                     DateOfBirth = table.Column<DateTime>(type: "TEXT", nullable: false),
                     Class = table.Column<string>(type: "TEXT", nullable: false),
+                    HealthIssues = table.Column<string>(type: "TEXT", nullable: false),
                     ParentId = table.Column<Guid>(type: "TEXT", nullable: false),
                     ParentModelId = table.Column<Guid>(type: "TEXT", nullable: true)
                 },

@@ -12,10 +12,19 @@ using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Filters;
 using System.Reflection;
 using SecSchoolApi.Model;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<SecSchoolApi.Filters.ResponseEnvelopeFilter>();
+})
+.AddJsonOptions(o =>
+{
+    o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    o.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -162,8 +171,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseMiddleware<SecSchoolApi.Middleware.MaintenanceMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<SecSchoolApi.Middleware.MaintenanceMiddleware>();
 app.MapControllers();
 app.Run();

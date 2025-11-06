@@ -1,4 +1,6 @@
-﻿namespace SecSchoolApi.Model
+﻿using System.Text.Json.Serialization;
+
+namespace SecSchoolApi.Model
 {
     public class StudentModel
     {
@@ -9,6 +11,7 @@
         public string? HealthIssue { get; set; }
 
         public Guid ParentId { get; set; }
+        [JsonIgnore] // prevent cycles Parent.Children[].Parent
         public ParentModel? Parent { get; set; }
     }
 }

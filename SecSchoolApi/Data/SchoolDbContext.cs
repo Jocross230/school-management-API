@@ -41,6 +41,16 @@ namespace SecSchoolApi.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // Global query filters
+            modelBuilder.Entity<Admin>().HasQueryFilter(a => !a.IsDeleted);
+
+            // Relationships
+            modelBuilder.Entity<Admin>()
+                .HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(a => a.ApplicationUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             modelBuilder.Entity<StudentModel>()
                 .HasOne(s => s.Parent)
                 .WithMany(p => p.Children)

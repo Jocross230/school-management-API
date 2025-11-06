@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using SecSchoolApi.Interface;
 using SecSchoolApi.Model;
 using SecSchoolApi.Services;
+using Swashbuckle.AspNetCore.Annotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -19,19 +21,23 @@ namespace SecSchoolApi.Controllers
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
+        private readonly IAdminService _adminService;
 
         public AuthController(UserManager<ApplicationUser> userManager,
                               RoleManager<IdentityRole<Guid>> roleManager,
                               IConfiguration configuration,
-                              IMapper mapper)
+                              IMapper mapper,
+                              IAdminService adminService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
             _mapper = mapper;
+            _adminService = adminService;
         }
 
         [HttpPost("register")]
+        [SwaggerOperation(OperationId = "Auth_Register", Summary = "Register user")] 
         public async Task<IActionResult> Register([FromBody] RegisterDto model)
         {
             var user = new ApplicationUser
@@ -51,10 +57,23 @@ namespace SecSchoolApi.Controllers
 
             await _userManager.AddToRoleAsync(user, roleName);
 
+            if (string.Equals(roleName, "Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                // Create a corresponding Admin profile record linked to identity user
+                await _adminService.RegisterAdminAsync(new Admin
+                {
+                    FullName = model.FullName,
+                    Email = model.Email,
+                    PhoneNumber = null,
+                    ApplicationUserId = user.Id
+                });
+            }
+
             return Ok(new { user.Id, user.Email, role = roleName });
         }
 
         [HttpPost("login")]
+        [SwaggerOperation(OperationId = "Auth_Login", Summary = "Login and get JWT")] 
         public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
             var user = await _userManager.FindByEmailAsync(model.Email);

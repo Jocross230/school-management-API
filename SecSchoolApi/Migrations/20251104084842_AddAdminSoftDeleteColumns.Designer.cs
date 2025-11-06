@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SecSchoolApi.Data;
 
@@ -10,9 +11,11 @@ using SecSchoolApi.Data;
 namespace SecSchoolApi.Migrations
 {
     [DbContext(typeof(SchoolDbContext))]
-    partial class SchoolDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251104084842_AddAdminSoftDeleteColumns")]
+    partial class AddAdminSoftDeleteColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.10");
@@ -202,9 +205,6 @@ namespace SecSchoolApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("ApplicationUserId")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("TEXT");
 
@@ -226,8 +226,6 @@ namespace SecSchoolApi.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ApplicationUserId");
 
                     b.ToTable("Admins");
                 });
@@ -939,14 +937,6 @@ namespace SecSchoolApi.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("SecSchoolApi.Model.Admin", b =>
-                {
-                    b.HasOne("SecSchoolApi.Services.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("ApplicationUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("SecSchoolApi.Model.Branding", b =>
