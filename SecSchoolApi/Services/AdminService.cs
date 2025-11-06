@@ -24,7 +24,7 @@ namespace SecSchoolApi.Services
 
             return student;
         }
-
+        //business logic for registering a teacher
         public async Task<Teacher> RegisterTeacherAsync(Teacher teacher)
         {
             _db.Teachers.Add(teacher);
