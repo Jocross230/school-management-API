@@ -249,7 +249,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 
 app.UseHttpsRedirection();
 
-app.UseMiddleware<SecSchoolApi.Middleware.MaintenanceMiddleware>();
+//app.UseMiddleware<SecSchoolApi.Middleware.MaintenanceMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
