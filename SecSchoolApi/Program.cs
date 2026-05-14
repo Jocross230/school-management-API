@@ -165,16 +165,22 @@ _ = Task.Run(async () =>
 
 // ================= PIPELINE =================
 app.UseSwagger();
+
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "SecSchoolApi v1");
     c.RoutePrefix = "swagger";
 });
 
-// 🔥 ORDER IS IMPORTANT
 app.UseHttpsRedirection();
 
-app.UseCors("AllowAll"); // ✅ FIX FOR SWAGGER + FRONTEND
+// 🔥 MUST be BEFORE auth + controllers
+app.UseCors(policy =>
+{
+    policy.AllowAnyOrigin()
+          .AllowAnyMethod()
+          .AllowAnyHeader();
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
