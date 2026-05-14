@@ -241,7 +241,7 @@ static async Task SeedDataAsync(WebApplication app, IConfiguration configuration
 }
 
 // ================= PIPELINE =================
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
