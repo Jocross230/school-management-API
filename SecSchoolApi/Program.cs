@@ -15,6 +15,17 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ================= CORS (FIX FOR SWAGGER "FAILED TO FETCH") =================
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 // ================= CONTROLLERS =================
 builder.Services.AddControllers(options =>
 {
@@ -152,15 +163,18 @@ _ = Task.Run(async () =>
     }
 });
 
-// ================= SWAGGER =================
-app.UseSwagger();
-app.UseSwaggerUI();
-
 // ================= PIPELINE =================
-if (!app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseHttpsRedirection();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "SecSchoolApi v1");
+    c.RoutePrefix = "swagger";
+});
+
+// 🔥 ORDER IS IMPORTANT
+app.UseHttpsRedirection();
+
+app.UseCors("AllowAll"); // ✅ FIX FOR SWAGGER + FRONTEND
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -186,7 +200,6 @@ static async Task SeedDataAsync(WebApplication app, IConfiguration configuration
         logger.LogError(ex, "Migration failed but continuing.");
     }
 
-    // ================= ROLES (SAFE) =================
     try
     {
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
@@ -203,7 +216,6 @@ static async Task SeedDataAsync(WebApplication app, IConfiguration configuration
         logger.LogError(ex, "Role seeding skipped.");
     }
 
-    // ================= ADMIN USER =================
     try
     {
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
@@ -236,7 +248,6 @@ static async Task SeedDataAsync(WebApplication app, IConfiguration configuration
         logger.LogError(ex, "Admin seeding failed.");
     }
 
-    // ================= DATA SEED =================
     try
     {
         if (!await db.Terms.AnyAsync())
