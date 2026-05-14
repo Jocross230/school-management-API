@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using SecSchoolApi.Interface;
 using SecSchoolApi.Services;
 using SecSchoolApi.Data;
-using System;
 using AutoMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -16,6 +15,7 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ================= CONTROLLERS =================
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<SecSchoolApi.Filters.ResponseEnvelopeFilter>();
@@ -28,6 +28,7 @@ builder.Services.AddControllers(options =>
 
 builder.Services.AddEndpointsApiExplorer();
 
+// ================= SWAGGER =================
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "SecSchoolApi", Version = "v1" });
@@ -62,9 +63,11 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddSwaggerExamplesFromAssemblies(Assembly.GetExecutingAssembly());
 
+// ================= DB =================
 builder.Services.AddDbContext<SchoolDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("TestDB")));
 
+// ================= IDENTITY =================
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 {
     options.Password.RequireDigit = true;
@@ -74,17 +77,15 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 .AddEntityFrameworkStores<SchoolDbContext>()
 .AddDefaultTokenProviders();
 
-
 // ================= JWT =================
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretRaw = jwtSettings["Secret"];
 
 if (string.IsNullOrWhiteSpace(secretRaw))
-{
     throw new InvalidOperationException("JWT secret is not configured.");
-}
 
 byte[] secretKeyBytes;
+
 try
 {
     secretKeyBytes = Convert.FromBase64String(secretRaw);
@@ -95,17 +96,11 @@ catch
 }
 
 if (secretKeyBytes.Length * 8 < 256)
-{
     throw new InvalidOperationException("JWT secret too weak.");
-}
 
 var key = new SymmetricSecurityKey(secretKeyBytes);
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
     options.RequireHttpsMetadata = false;
@@ -123,6 +118,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// ================= SERVICES =================
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
 builder.Services.AddScoped<IStudentService, StudentService>();
@@ -143,15 +139,35 @@ var app = builder.Build();
 
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 
-// ================= SAFE SEEDING =================
-try
+// ================= SAFE BACKGROUND SEED =================
+_ = Task.Run(async () =>
 {
-    await SeedDataAsync(app, builder.Configuration, logger);
-}
-catch (Exception ex)
+    try
+    {
+        await SeedDataAsync(app, builder.Configuration, logger);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Background seeding failed.");
+    }
+});
+
+// ================= SWAGGER =================
+app.UseSwagger();
+app.UseSwaggerUI();
+
+// ================= PIPELINE =================
+if (!app.Environment.IsDevelopment())
 {
-    logger.LogError(ex, "Seeding failed but app will continue running.");
+    app.UseHttpsRedirection();
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.Run();
+
 
 // ================= SEED METHOD =================
 static async Task SeedDataAsync(WebApplication app, IConfiguration configuration, ILogger logger)
@@ -167,92 +183,93 @@ static async Task SeedDataAsync(WebApplication app, IConfiguration configuration
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Migration failed but continuing startup.");
+        logger.LogError(ex, "Migration failed but continuing.");
     }
 
-    var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-    var roles = new[] { "Admin", "Teacher", "Parent", "Student" };
-
-    foreach (var r in roles)
+    // ================= ROLES (SAFE) =================
+    try
     {
-        if (!await roleManager.RoleExistsAsync(r))
-            await roleManager.CreateAsync(new IdentityRole<Guid>(r));
-    }
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        var roles = new[] { "Admin", "Teacher", "Parent", "Student" };
 
-    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-    var adminEmail = configuration["SeedAdmin:Email"];
-    var adminPassword = configuration["SeedAdmin:Password"];
-
-    if (!string.IsNullOrEmpty(adminEmail) && !string.IsNullOrEmpty(adminPassword))
-    {
-        var existing = await userManager.FindByEmailAsync(adminEmail);
-
-        if (existing == null)
+        foreach (var r in roles)
         {
-            var admin = new ApplicationUser
-            {
-                UserName = adminEmail,
-                Email = adminEmail,
-                FullName = "System Admin"
-            };
+            if (!await roleManager.RoleExistsAsync(r))
+                await roleManager.CreateAsync(new IdentityRole<Guid>(r));
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Role seeding skipped.");
+    }
 
-            var create = await userManager.CreateAsync(admin, adminPassword);
+    // ================= ADMIN USER =================
+    try
+    {
+        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
 
-            if (create.Succeeded)
+        var adminEmail = configuration["SeedAdmin:Email"];
+        var adminPassword = configuration["SeedAdmin:Password"];
+
+        if (!string.IsNullOrEmpty(adminEmail) && !string.IsNullOrEmpty(adminPassword))
+        {
+            var existing = await userManager.FindByEmailAsync(adminEmail);
+
+            if (existing == null)
             {
-                await userManager.AddToRoleAsync(admin, "Admin");
-            }
-            else
-            {
-                logger.LogWarning("Admin creation failed: {Errors}",
-                    string.Join(", ", create.Errors.Select(e => e.Description)));
+                var admin = new ApplicationUser
+                {
+                    UserName = adminEmail,
+                    Email = adminEmail,
+                    FullName = "System Admin"
+                };
+
+                var create = await userManager.CreateAsync(admin, adminPassword);
+
+                if (create.Succeeded)
+                    await userManager.AddToRoleAsync(admin, "Admin");
             }
         }
     }
-
-    if (!await db.Terms.AnyAsync())
+    catch (Exception ex)
     {
-        var year = DateTime.UtcNow.Year;
+        logger.LogError(ex, "Admin seeding failed.");
+    }
 
-        await db.Terms.AddRangeAsync(new[]
+    // ================= DATA SEED =================
+    try
+    {
+        if (!await db.Terms.AnyAsync())
         {
-            new AcademicTerm { Name = $"{year} Term 1", StartDate = new DateTime(year,1,1,0,0,0,DateTimeKind.Utc), EndDate = new DateTime(year,4,1,0,0,0,DateTimeKind.Utc), IsCurrent = true },
-            new AcademicTerm { Name = $"{year} Term 2", StartDate = new DateTime(year,4,2,0,0,0,DateTimeKind.Utc), EndDate = new DateTime(year,7,1,0,0,0,DateTimeKind.Utc), IsCurrent = false },
-            new AcademicTerm { Name = $"{year} Term 3", StartDate = new DateTime(year,7,2,0,0,0,DateTimeKind.Utc), EndDate = new DateTime(year,10,1,0,0,0,DateTimeKind.Utc), IsCurrent = false }
-        });
-    }
+            var year = DateTime.UtcNow.Year;
 
-    if (!await db.Subjects.AnyAsync())
-    {
-        await db.Subjects.AddRangeAsync(new[]
+            await db.Terms.AddRangeAsync(new[]
+            {
+                new AcademicTerm { Name = $"{year} Term 1", StartDate = new DateTime(year,1,1,0,0,0,DateTimeKind.Utc), EndDate = new DateTime(year,4,1,0,0,0,DateTimeKind.Utc), IsCurrent = true },
+                new AcademicTerm { Name = $"{year} Term 2", StartDate = new DateTime(year,4,2,0,0,0,DateTimeKind.Utc), EndDate = new DateTime(year,7,1,0,0,0,DateTimeKind.Utc), IsCurrent = false },
+                new AcademicTerm { Name = $"{year} Term 3", StartDate = new DateTime(year,7,2,0,0,0,DateTimeKind.Utc), EndDate = new DateTime(year,10,1,0,0,0,DateTimeKind.Utc), IsCurrent = false }
+            });
+        }
+
+        if (!await db.Subjects.AnyAsync())
         {
-            new Subject { Name = "English" },
-            new Subject { Name = "Mathematics" },
-            new Subject { Name = "Science" }
-        });
-    }
+            await db.Subjects.AddRangeAsync(new[]
+            {
+                new Subject { Name = "English" },
+                new Subject { Name = "Mathematics" },
+                new Subject { Name = "Science" }
+            });
+        }
 
-    if (!await db.GradingSchemes.AnyAsync())
+        if (!await db.GradingSchemes.AnyAsync())
+        {
+            await db.GradingSchemes.AddAsync(new GradingScheme { Name = "Default" });
+        }
+
+        await db.SaveChangesAsync();
+    }
+    catch (Exception ex)
     {
-        await db.GradingSchemes.AddAsync(new GradingScheme { Name = "Default" });
+        logger.LogError(ex, "Data seeding failed.");
     }
-
-    await db.SaveChangesAsync();
 }
-
-// ================= PIPELINE =================
-if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-
-//app.UseMiddleware<SecSchoolApi.Middleware.MaintenanceMiddleware>();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-app.Run();
