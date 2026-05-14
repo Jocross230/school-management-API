@@ -70,6 +70,12 @@ builder.Services.AddSwaggerGen(c =>
             new string[] {}
         }
     });
+
+    // 🔥 FIX: FORCE HTTPS SERVER URL (THIS IS THE KEY)
+    c.AddServer(new OpenApiServer
+    {
+        Url = "https://school-management-api-h3ze.onrender.com"
+    });
 });
 
 builder.Services.AddSwaggerExamplesFromAssemblies(Assembly.GetExecutingAssembly());
