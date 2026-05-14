@@ -1,0 +1,16 @@
+# Visual Studio
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Build outputs
+bin/
+obj/
+
+# VS indexing/cache files
+*.vsidx
+
+# Secrets (IMPORTANT)
+appsettings.json
+appsettings.Development.json
